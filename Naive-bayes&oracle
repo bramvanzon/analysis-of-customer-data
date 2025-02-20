@@ -1,0 +1,28 @@
+df_train['nview'] = df_train.groupby('session_id')['event'].apply(lambda x: (x == 'view').sum())
+df_train['ndetail'] = df_train.groupby('session_id')['event'].apply(lambda x: (x == 'detail').sum())
+df_train['nremove'] = df_train.groupby('session_id')['event'].apply(lambda x: (x == 'remove').sum())
+
+# Model training and prediction
+# Naive Bayes with handcrafted features
+X = df_train[['weekend', 'part_day', 'nevents', 'total_time', 'products_viewed', 'nview', 'ndetail', 'nremove']]
+y = df_train['convert']
+
+nb_model = GaussianNB()
+nb_model.fit(X, y)
+predictions_nb = nb_model.predict(X)
+
+# Naive Bayes with n-grams
+vectorizer = CountVectorizer(ngram_range=(4, 4))
+X_ngrams = vectorizer.fit_transform(df_train['session_sequence'])
+nb_model_ngram = GaussianNB()
+nb_model_ngram.fit(X_ngrams, y)
+predictions_ngram = nb_model_ngram.predict(X_ngrams)
+
+# Oracle Model (Simplified heuristic)
+oracle_predictions = df_train['convert']  # Simple heuristic, use actual conversion labels (baseline)
+
+
+# Evaluation (F1 score)
+f1_nb = f1_score(y, predictions_nb)
+f1_ngram = f1_score(y, predictions_ngram)
+f1_svm = f1_score(y, predictions_svm)
