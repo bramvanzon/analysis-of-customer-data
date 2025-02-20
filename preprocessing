@@ -1,0 +1,38 @@
+# Import statements
+import pandas as pd
+import numpy as np
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics import f1_score
+from collections import Counter
+
+df_train = pd.read_csv("train.csv")
+df_eval = pd.read_csv("eval.csv")
+
+# Filter out sessions with no add-to-cart event
+df_train['addcart'] = df_train['event'].apply(lambda x: 'add_to_cart' in x)
+df_train = df_train[df_train['addcart'] == True]
+
+df_train['convert'] = df_train['event'].apply(lambda x: 'purchase' in x)
+df_train = df_train[df_train['convert'] == True]  # Only keep events before the first purchase
+
+df_train = df_train[df_train['event_count'] > 5]
+df_train = df_train[df_train['event_count'] < 100]
+
+action_freq = Counter(df_train['event'])
+action_map = {action: idx+1 for idx, (action, _) in enumerate(action_freq.most_common())}
+df_train['event_symb'] = df_train['event'].map(action_map)
+
+df_train['weekend'] = df_train['date'].apply(lambda x: 1 if x.weekday() >= 5 else 0)
+df_train['part_day'] = df_train['hour'].apply(lambda x: 0 if x < 6 else (1 if x < 12 else (3 if x < 18 else 4)))
+df_train['nevents'] = df_train.groupby('session_id')['event'].transform('count')
+df_train['total_time'] = df_train.groupby('session_id')['time'].transform('sum')
+df_train['products_viewed'] = df_train.groupby('session_id')['product_id'].transform('nunique')
+
+def count_events_after_add(session_id):
+    session = df_train[df_train['session_id'] == session_id]
+    add_index = session[session['event'] == 'add_to_cart'].index[0]
+    after_add = session.iloc[add_index:]
+    return after_add
+
