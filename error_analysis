@@ -1,0 +1,50 @@
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, classification_report
+
+### 1. Confusion Matrix
+cm = confusion_matrix(y, predictions_nb)
+plt.figure(figsize=(6, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap="Blues", xticklabels=['Abandon', 'Convert'], yticklabels=['Abandon', 'Convert'])
+plt.title("Confusion Matrix for Naive Bayes")
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.show()
+
+### 2. Feature Importance for Naive Bayes
+feature_importance = pd.DataFrame(nb_model.theta_, columns=X.columns)
+feature_importance.index = ['Class 0', 'Class 1']
+feature_importance = feature_importance.T
+feature_importance['Diff'] = feature_importance['Class 1'] - feature_importance['Class 0']
+feature_importance = feature_importance.sort_values(by='Diff', ascending=False)
+
+print("Feature Importance (Naive Bayes):")
+print(feature_importance)
+
+### 3. Session-wise Misclassification Analysis
+misclassified_sessions = df_train[(predictions_nb != y)]
+session_error_patterns = misclassified_sessions.groupby('session_id').agg(
+    nview=('nview', 'sum'),
+    ndetail=('ndetail', 'sum'),
+    nremove=('nremove', 'sum'),
+    total_time=('total_time', 'sum'),
+    products_viewed=('products_viewed', 'nunique')
+).reset_index()
+
+sns.pairplot(session_error_patterns)
+plt.suptitle("Session-wise Misclassification Patterns", y=1.02)
+plt.show()
+
+### 4. Temporal Error Analysis (Error Rate by Hour of Day)
+df_train['date'] = pd.to_datetime(df_train['date'])
+df_train['hour'] = df_train['date'].dt.hour
+
+error_times = pd.DataFrame({'pred': predictions_nb, 'actual': y, 'hour': df_train['hour']})
+error_times['error'] = (error_times['pred'] != error_times['actual']).astype(int)
+hourly_errors = error_times.groupby('hour')['error'].mean()
+
+sns.lineplot(data=hourly_errors)
+plt.title("Error Rate by Hour of the Day")
+plt.xlabel('Hour of Day')
+plt.ylabel('Error Rate')
+plt.show()
